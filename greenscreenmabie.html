@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Green Screen Camera</title>
+  <style>
+    body {
+      text-align: center;
+      background: #111;
+      color: white;
+      font-family: Arial;
+    }
+    canvas, video {
+      display: none;
+    }
+    #output {
+      border: 2px solid white;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Live Green Screen Camera</h2>
+<canvas id="output"></canvas>
+
+<video id="video" autoplay playsinline></video>
+<img id="bg" src="https://picsum.photos/800/600" crossorigin="anonymous" style="display:none;">
+
+<script>
+const video = document.getElementById('video');
+const canvas = document.getElementById('output');
+const ctx = canvas.getContext('2d');
+const bg = document.getElementById('bg');
+
+// Get webcam
+navigator.mediaDevices.getUserMedia({ video: true })
+.then(stream => {
+    video.srcObject = stream;
+})
+.catch(err => {
+    alert("Camera access denied or error.");
+});
+
+// Process frames
+video.addEventListener('loadeddata', () => {
+    canvas.width = video.videoWidth;
+    canvas.height = video.videoHeight;
+
+    function draw() {
+        ctx.drawImage(video, 0, 0);
+
+        let frame = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        let data = frame.data;
+
+        for (let i = 0; i < data.length; i += 4) {
+            let r = data[i];
+            let g = data[i + 1];
+            let b = data[i + 2];
+
+            // Green screen detection
+            if (g > 120 && g > r * 1.2 && g > b * 1.2) {
+                // Replace with background pixel
+                let x = (i / 4) % canvas.width;
+                let y = Math.floor((i / 4) / canvas.width);
+
+                let bgPixel = getBgPixel(x, y);
+                data[i] = bgPixel.r;
+                data[i + 1] = bgPixel.g;
+                data[i + 2] = bgPixel.b;
+            }
+        }
+
+        ctx.putImageData(frame, 0, 0);
+        requestAnimationFrame(draw);
+    }
+
+    function getBgPixel(x, y) {
+        let tempCanvas = document.createElement('canvas');
+        let tempCtx = tempCanvas.getContext('2d');
+
+        tempCanvas.width = canvas.width;
+        tempCanvas.height = canvas.height;
+        tempCtx.drawImage(bg, 0, 0, canvas.width, canvas.height);
+
+        let pixel = tempCtx.getImageData(x, y, 1, 1).data;
+
+        return {
+            r: pixel[0],
+            g: pixel[1],
+            b: pixel[2]
+        };
+    }
+
+    draw();
+});
+</script>
+
+</body>
+</html>
